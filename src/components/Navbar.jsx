@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FileText, Github, Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import CreativeBuildButton from './CreativeBuildButton';
 
 export default function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -35,9 +36,9 @@ export default function Navbar() {
                         </a>
                     </div>
 
-                    <Link to="/build" className="btn-doodle btn-doodle-primary text-xl py-2 px-6 rotate-2 hover:-rotate-1">
-                        Build CV
-                    </Link>
+                    <div className="transform rotate-2 hover:-rotate-1 transition-transform duration-300">
+                        <CreativeBuildButton />
+                    </div>
                 </div>
 
                 {/* Mobile Toggle */}
@@ -61,9 +62,9 @@ export default function Navbar() {
                     <Link to="/analyse" className="text-xl font-bold font-sketch border-2 border-black p-3 rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-emerald-100 transform -rotate-1" onClick={() => setIsMenuOpen(false)}>
                         Resume Check
                     </Link>
-                    <Link to="/build" className="btn-doodle btn-doodle-primary w-full text-center justify-center transform hover:scale-105" onClick={() => setIsMenuOpen(false)}>
-                        Start Building
-                    </Link>
+                    <div className="flex justify-center w-full" onClick={() => setIsMenuOpen(false)}>
+                        <CreativeBuildButton />
+                    </div>
                 </div>
             )}
         </nav>
