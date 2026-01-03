@@ -277,10 +277,13 @@ const distPath = path.join(process.cwd(), 'dist');
 console.log('Serving uploaded files from:', distPath);
 app.use(express.static(distPath));
 
-// The "catchall" handler: for any request that doesn't
-// match one above, send back React's index.html file.
-app.get('*', (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
+// SPA Fallback: Send index.html for any other GET request
+app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api')) {
+        res.sendFile(path.join(distPath, 'index.html'));
+    } else {
+        next();
+    }
 });
 
 app.listen(PORT, () => {
