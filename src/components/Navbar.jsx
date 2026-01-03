@@ -27,7 +27,7 @@ export default function Navbar() {
                         <Link to="/about" className="hover:underline decoration-wavy decoration-2 underline-offset-4 hover:text-black transition-all -rotate-1">
                             About
                         </Link>
-                        <a href="https://github.com" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-black transition-colors rotate-1 hover:scale-110">
+                        <a href="https://github.com/Shauryan28/WriteCv" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-black transition-colors rotate-1 hover:scale-110">
                             <Github size={20} /> GitHub
                         </a>
                     </div>
