@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { ArrowRight, CheckCircle, Zap, PenTool, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import HeroCTA from '../components/HeroCTA';
+
 export default function Home() {
     return (
         <div className="relative min-h-screen pt-32 pb-20 overflow-hidden font-body text-slate-900">
@@ -42,15 +44,7 @@ export default function Home() {
                         <span className="text-lg mt-4 block text-slate-500 font-normal font-sans-clean italic">Just type & print. No hidden text boxes.</span>
                     </p>
 
-                    <div className="flex flex-col md:flex-row items-center gap-8">
-                        <Link to="/build" className="btn-doodle btn-doodle-primary px-10 py-5 text-2xl group relative">
-                            Start Building <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
-                            <span className="absolute -top-3 -right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 transform rotate-12 border border-black shadow-sm rounded-sm">FREE!</span>
-                        </Link>
-                        <p className="text-lg text-slate-500 font-bold font-sketch rotate-2">
-                            * No sign up needed!
-                        </p>
-                    </div>
+                    <HeroCTA />
                 </motion.div>
             </section>
 
