@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import puppeteer from 'puppeteer';
+// import puppeteer from 'puppeteer'; // Lazy load instead
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -241,6 +241,7 @@ app.post('/api/generate', async (req, res) => {
     const { personal = {} } = data;
 
     try {
+        const puppeteer = (await import('puppeteer')).default;
         const browser = await puppeteer.launch({
             headless: 'new',
             args: ['--no-sandbox', '--disable-setuid-sandbox']
