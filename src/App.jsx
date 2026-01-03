@@ -7,12 +7,14 @@ import Builder from './pages/Builder';
 import About from './pages/About';
 import Analyser from './pages/Analyser';
 import SpotlightBackground from './components/SpotlightBackground';
+import CustomCursor from './components/CustomCursor';
 import './index.css';
 
 export default function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-paper font-sans text-ink relative overflow-hidden">
+      <div className="min-h-screen font-sans text-ink relative overflow-hidden">
+        <CustomCursor />
         {/* Global Doodles */}
         <SpotlightBackground />
 
