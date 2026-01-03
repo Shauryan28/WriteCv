@@ -126,16 +126,6 @@ export default function Builder() {
         }
     };
 
-    const analyzeCV = async () => {
-        try {
-            const response = await axios.post('/api/analyze', formData);
-            return response.data;
-        } catch (err) {
-            console.error(err);
-            return null;
-        }
-    };
-
     // Helper to get correct data slice
     const getCurrentData = () => {
         const stepId = Steps[currentStep].id;
@@ -151,7 +141,6 @@ export default function Builder() {
                 setCurrentStep={setCurrentStep}
                 error={error}
                 generateCV={generateCV}
-                onAnalyze={analyzeCV}
                 loading={loading}
             />
 
@@ -165,6 +154,6 @@ export default function Builder() {
                 />
             </main>
 
-        </div>
+        </div >
     );
 }

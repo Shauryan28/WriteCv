@@ -27,6 +27,9 @@ export default function Navbar() {
                         <Link to="/about" className="hover:underline decoration-wavy decoration-2 underline-offset-4 hover:text-black transition-all -rotate-1">
                             About
                         </Link>
+                        <Link to="/analyse" className="hover:underline decoration-wavy decoration-2 underline-offset-4 hover:text-black transition-all rotate-1 text-emerald-700">
+                            Check Score
+                        </Link>
                         <a href="https://github.com/Shauryan28/WriteCv" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-black transition-colors rotate-1 hover:scale-110">
                             <Github size={20} /> GitHub
                         </a>
@@ -54,6 +57,9 @@ export default function Navbar() {
                     </Link>
                     <Link to="/about" className="text-xl font-bold font-sketch border-2 border-black p-3 rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-blue-100 transform rotate-1" onClick={() => setIsMenuOpen(false)}>
                         About
+                    </Link>
+                    <Link to="/analyse" className="text-xl font-bold font-sketch border-2 border-black p-3 rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-emerald-100 transform -rotate-1" onClick={() => setIsMenuOpen(false)}>
+                        Resume Check
                     </Link>
                     <Link to="/build" className="btn-doodle btn-doodle-primary w-full text-center justify-center transform hover:scale-105" onClick={() => setIsMenuOpen(false)}>
                         Start Building
