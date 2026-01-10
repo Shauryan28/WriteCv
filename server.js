@@ -4,6 +4,7 @@ import bodyParser from 'body-parser';
 // import puppeteer from 'puppeteer'; // Lazy load instead
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, TabStopType, TabStopPosition } from 'docx';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -224,6 +225,140 @@ function generateResumeHTML(data) {
 </html>`;
 }
 
+// --- DOCX Generation Logic ---
+function createDocxSectionHeader(title) {
+    return new Paragraph({
+        text: title,
+        heading: HeadingLevel.HEADING_1,
+        thematicBreak: true,
+        spacing: {
+            before: 200,
+            after: 100,
+        },
+    });
+}
+
+function generateResumeDOCX(data) {
+    const { personal = {}, experience = [], projects = [], education = [], skills = '' } = data;
+    const children = [];
+
+    // Header
+    children.push(
+        new Paragraph({
+            text: personal.name || 'Resume',
+            heading: HeadingLevel.TITLE,
+            alignment: AlignmentType.CENTER,
+        }),
+        new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+                new TextRun({ text: personal.email ? `${personal.email} | ` : '' }),
+                new TextRun({ text: personal.phone ? `${personal.phone} | ` : '' }),
+                new TextRun({ text: personal.linkedin ? `${personal.linkedin}` : '' }),
+            ],
+            spacing: { after: 200 },
+        })
+    );
+
+    // Summary
+    if (personal.summary) {
+        children.push(createDocxSectionHeader('Professional Summary'));
+        children.push(new Paragraph({
+            text: personal.summary,
+            spacing: { after: 200 },
+        }));
+    }
+
+    // Experience
+    if (experience.length > 0) {
+        children.push(createDocxSectionHeader('Experience'));
+        experience.forEach(exp => {
+            children.push(
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: exp.role || 'Role', bold: true, size: 24 }),
+                        new TextRun({ text: ` | ${exp.company || 'Company'}`, italics: true }),
+                        new TextRun({
+                            text: `\t${exp.dates || ''}`,
+                            bold: true,
+                        }),
+                    ],
+                    tabStops: [
+                        { type: TabStopType.RIGHT, position: TabStopPosition.MAX },
+                    ],
+                })
+            );
+
+            if (exp.details) {
+                const bullets = exp.details.split('\n').filter(l => l.trim());
+                bullets.forEach(bullet => {
+                    children.push(new Paragraph({
+                        text: bullet,
+                        bullet: { level: 0 },
+                    }));
+                });
+            }
+            children.push(new Paragraph({ text: "" })); // Spacer
+        });
+    }
+
+    // Projects
+    if (projects.length > 0) {
+        children.push(createDocxSectionHeader('Projects'));
+        projects.forEach(proj => {
+            children.push(
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: proj.name || 'Project Name', bold: true, size: 24 }),
+                    ],
+                })
+            );
+            children.push(new Paragraph({
+                text: proj.description || '',
+                spacing: { after: 100 },
+            }));
+        });
+    }
+
+    // Education
+    if (education.length > 0) {
+        children.push(createDocxSectionHeader('Education'));
+        education.forEach(edu => {
+            children.push(
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: edu.school || 'School', bold: true }),
+                        new TextRun({ text: ` - ${edu.degree || 'Degree'}` }),
+                        new TextRun({
+                            text: `\t${edu.year || ''}`,
+                            bold: true,
+                        }),
+                    ],
+                    tabStops: [
+                        { type: TabStopType.RIGHT, position: TabStopPosition.MAX },
+                    ],
+                    spacing: { after: 100 },
+                })
+            );
+        });
+    }
+
+    // Skills
+    if (skills) {
+        children.push(createDocxSectionHeader('Skills'));
+        children.push(new Paragraph({
+            text: skills,
+        }));
+    }
+
+    return new Document({
+        sections: [{
+            properties: {},
+            children: children,
+        }],
+    });
+}
+
 // --- Endpoints ---
 
 app.post('/api/analyze', (req, res) => {
@@ -235,40 +370,52 @@ app.post('/api/analyze', (req, res) => {
     }
 });
 
-// --- PDF Generation Endpoint ---
+// --- Document Generation Endpoint ---
 app.post('/api/generate', async (req, res) => {
     const data = req.body;
     const { personal = {} } = data;
+    const format = req.query.format || 'pdf'; // 'pdf' or 'docx'
 
     try {
-        const puppeteer = (await import('puppeteer')).default;
-        const browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        const fileName = `${personal.name ? personal.name.replace(/\s+/g, '_') : 'Resume'} `;
 
-        const page = await browser.newPage();
-        const html = generateResumeHTML(data);
+        if (format === 'docx') {
+            const doc = generateResumeDOCX(data);
+            const buffer = await Packer.toBuffer(doc);
 
-        // Wait for fonts to load
-        await page.setContent(html, { waitUntil: 'networkidle0' });
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+            res.setHeader('Content-Disposition', `attachment; filename = "${fileName}.docx"`);
+            res.send(buffer);
+        } else {
+            // Default to PDF
+            const puppeteer = (await import('puppeteer')).default;
+            const browser = await puppeteer.launch({
+                headless: 'new',
+                args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
 
-        const pdfBuffer = await page.pdf({
-            format: 'A4',
-            printBackground: true,
-            margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' }
-        });
+            const page = await browser.newPage();
+            const html = generateResumeHTML(data);
 
-        await browser.close();
+            // Wait for fonts to load
+            await page.setContent(html, { waitUntil: 'networkidle0' });
 
-        const fileName = `${personal.name ? personal.name.replace(/\s+/g, '_') : 'Resume'}.pdf`;
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-        res.send(pdfBuffer);
+            const pdfBuffer = await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' }
+            });
+
+            await browser.close();
+
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename = "${fileName}.pdf"`);
+            res.send(pdfBuffer);
+        }
 
     } catch (error) {
-        console.error('PDF generation error:', error);
-        res.status(500).json({ error: 'Failed to generate PDF' });
+        console.error('Generation error:', error);
+        res.status(500).json({ error: 'Failed to generate document' });
     }
 });
 

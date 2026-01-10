@@ -35,14 +35,25 @@ export default function Sidebar({ steps, currentStep, setCurrentStep, error, gen
 
                 {/* Rubber Stamp Print Button */}
                 <div className="mt-8">
-                    <button
-                        type="button"
-                        onClick={generateCV}
-                        disabled={loading}
-                        className="stamp-btn w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {loading ? 'INKING...' : 'PRINT PDF'}
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => generateCV('pdf')}
+                            disabled={loading}
+                            className="stamp-btn flex-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                            {loading ? 'Wait...' : 'PDF'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => generateCV('docx')}
+                            disabled={loading}
+                            className="stamp-btn flex-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            style={{ transform: 'rotate(1deg)', backgroundColor: '#e2e8f0' }}
+                        >
+                            {loading ? 'Wait...' : 'WORD'}
+                        </button>
+                    </div>
 
                     {error && (
                         <div className="mt-4 p-2 bg-red-100 border border-red-500 text-red-700 text-sm font-hand rotate-1">

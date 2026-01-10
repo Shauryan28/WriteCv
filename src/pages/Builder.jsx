@@ -89,11 +89,11 @@ export default function Builder() {
         }));
     };
 
-    const generateCV = async () => {
+    const generateCV = async (format = 'pdf') => {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch('http://localhost:3001/api/generate', {
+            const response = await fetch(`http://localhost:3001/api/generate?format=${format}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -109,7 +109,7 @@ export default function Builder() {
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `${formData.personal.name || 'Resume'}.pdf`;
+            link.download = `${formData.personal.name || 'Resume'}.${format}`;
             document.body.appendChild(link);
             link.click();
 
@@ -119,8 +119,8 @@ export default function Builder() {
                 window.URL.revokeObjectURL(url);
             }, 100);
         } catch (err) {
-            console.error('PDF generation error:', err);
-            setError('Failed to generate PDF. Is the server running?');
+            console.error('Generation error:', err);
+            setError('Failed to generate document. Is the server running?');
         } finally {
             setLoading(false);
         }
