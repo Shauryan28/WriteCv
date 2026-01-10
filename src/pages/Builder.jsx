@@ -93,7 +93,7 @@ export default function Builder() {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch(`http://localhost:3001/api/generate?format=${format}`, {
+            const response = await fetch(`/api/generate?format=${format}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

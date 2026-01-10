@@ -391,7 +391,13 @@ app.post('/api/generate', async (req, res) => {
             const puppeteer = (await import('puppeteer')).default;
             const browser = await puppeteer.launch({
                 headless: 'new',
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--single-process', // Often needed in lightweight environments
+                    '--no-zygote'
+                ]
             });
 
             const page = await browser.newPage();
