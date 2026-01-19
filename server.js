@@ -918,6 +918,31 @@ app.post('/api/generate', async (req, res) => {
     }
 });
 
+// Resume Analysis Endpoint
+app.post('/api/analyze', (req, res) => {
+    try {
+        const resumeData = req.body;
+        console.log('Analyzing resume data:', {
+            hasPersonal: !!resumeData.personal,
+            experienceCount: resumeData.experience?.length || 0,
+            educationCount: resumeData.education?.length || 0
+        });
+
+        const analysis = analyzeResume(resumeData);
+        console.log('Analysis result:', {
+            score: analysis.score,
+            atsScore: analysis.atsScore,
+            grade: analysis.grade
+        });
+
+        res.json(analysis);
+    } catch (error) {
+        console.error('Analysis error:', error);
+        res.status(500).json({ error: 'Failed to analyze resume' });
+    }
+});
+
+
 // Serve static files from the React app
 const distPath = path.join(process.cwd(), 'dist');
 console.log('Serving uploaded files from:', distPath);

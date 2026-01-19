@@ -9,27 +9,88 @@ export default function Analyser() {
     const [analyzing, setAnalyzing] = useState(false);
     const [result, setResult] = useState(null);
 
+
     const analyzeText = async () => {
         setAnalyzing(true);
         try {
-            // Parse the pasted text into a simple structure
-            const words = text.split(/\s+/).length;
+            // Enhanced parsing logic
+            const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-            // Create a mock data structure from the text
-            const mockData = {
-                personal: {
-                    name: 'Analyzed User',
-                    email: text.includes('@') ? text.match(/[\w.-]+@[\w.-]+\.\w+/)?.[0] || '' : '',
-                    phone: text.match(/\d{3}.*\d{3}.*\d{4}/)?.[0] || '',
-                    summary: text.substring(0, Math.min(200, text.length))
-                },
-                experience: words > 100 ? [{ company: 'Sample', details: text }] : [],
-                projects: [],
+            // Extract sections based on common headers
+            const sections = {
+                experience: [],
                 education: [],
-                skills: text.substring(0, 100)
+                skills: [],
+                projects: []
             };
 
-            const response = await axios.post('/api/analyze', mockData);
+            let currentSection = null;
+            let currentEntry = { details: [] };
+
+            lines.forEach(line => {
+                const lowerLine = line.toLowerCase();
+
+                // Detect section headers
+                if (lowerLine.includes('experience') || lowerLine.includes('work history')) {
+                    currentSection = 'experience';
+                } else if (lowerLine.includes('education') || lowerLine.includes('academic')) {
+                    currentSection = 'education';
+                } else if (lowerLine.includes('skills') || lowerLine.includes('technologies')) {
+                    currentSection = 'skills';
+                } else if (lowerLine.includes('projects') || lowerLine.includes('portfolio')) {
+                    currentSection = 'projects';
+                } else if (currentSection === 'experience') {
+                    // Try to detect new experience entry (usually has dates or company names)
+                    if (line.match(/\d{4}/) || line.match(/^\w+\s+(Inc|Corp|LLC|Ltd|Company)/i)) {
+                        if (currentEntry.details.length > 0) {
+                            sections.experience.push({
+                                company: currentEntry.company || 'Company',
+                                role: currentEntry.role || 'Position',
+                                dates: currentEntry.dates || '',
+                                details: currentEntry.details.join('\n')
+                            });
+                        }
+                        currentEntry = { company: line, details: [] };
+                    } else {
+                        currentEntry.details.push(line);
+                    }
+                } else if (currentSection === 'education') {
+                    sections.education.push({ school: line, degree: 'Degree', year: '' });
+                } else if (currentSection === 'skills') {
+                    sections.skills.push(line);
+                } else if (currentSection === 'projects') {
+                    sections.projects.push({ name: line, description: '' });
+                }
+            });
+
+            // Add last experience entry
+            if (currentEntry.details.length > 0 && currentSection === 'experience') {
+                sections.experience.push({
+                    company: currentEntry.company || 'Company',
+                    role: currentEntry.role || 'Position',
+                    dates: '',
+                    details: currentEntry.details.join('\n')
+                });
+            }
+
+            // Build data structure
+            const resumeData = {
+                personal: {
+                    name: lines[0] || 'Resume Analyzed',
+                    email: text.match(/[\w.-]+@[\w.-]+\.\w+/)?.[0] || '',
+                    phone: text.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/)?.[0] || '',
+                    linkedin: text.match(/linkedin\.com\/in\/[\w-]+/)?.[0] ? 'https://' + text.match(/linkedin\.com\/in\/[\w-]+/)[0] : '',
+                    location: text.match(/\b[A-Z][a-z]+,\s*[A-Z]{2}\b/)?.[0] || '',
+                    summary: lines.slice(1, 4).join(' ').substring(0, 200)
+                },
+                experience: sections.experience.length > 0 ? sections.experience :
+                    (text.length > 200 ? [{ company: 'Extracted', role: 'Position', dates: '', details: text.substring(0, 500) }] : []),
+                education: sections.education.slice(0, 3),
+                projects: sections.projects.slice(0, 3),
+                skills: sections.skills.length > 0 ? sections.skills.join(', ') : text.substring(0, 150)
+            };
+
+            const response = await axios.post('/api/analyze', resumeData);
             setResult(response.data);
         } catch (error) {
             console.error('Analysis failed:', error);
@@ -37,6 +98,7 @@ export default function Analyser() {
             setAnalyzing(false);
         }
     };
+
 
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
