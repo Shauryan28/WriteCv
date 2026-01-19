@@ -5,6 +5,7 @@ import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, TabStopType, TabStopPosition } from 'docx';
+import PDFDocument from 'pdfkit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +20,8 @@ app.use(bodyParser.json());
 const ACTION_VERBS = [
     'managed', 'led', 'developed', 'created', 'implemented', 'optimized', 'engineered',
     'designed', 'launched', 'improved', 'increased', 'reduced', 'saved', 'structured',
-    'mentored', 'coordinated', 'achieved', 'driven', 'spearheaded', 'built', 'analyzed'
+    'mentored', 'coordinated', 'achieved', 'driven', 'spearheaded', 'built', 'analyzed',
+    'collaborated', 'initiated', 'executed', 'formulated', 'integrated', 'maximized'
 ];
 
 function analyzeResume(data) {
@@ -29,26 +31,46 @@ function analyzeResume(data) {
     const strengths = [];
 
     // 1. Completeness Check
-    if (!personal.name) { score -= 10; feedback.push("Missing Name."); }
-    if (!personal.email) { score -= 10; feedback.push("Missing Email."); }
-    if (experience.length === 0) { score -= 20; feedback.push("No experience listed. Add internships or jobs."); }
-    if (education.length === 0) { score -= 10; feedback.push("No education listed."); }
-    if (!skills) { score -= 10; feedback.push("No skills listed."); }
+    if (!personal.name) { score -= 15; feedback.push("Critical: Missing Name."); }
+    if (!personal.email) { score -= 15; feedback.push("Critical: Missing Email."); }
+    if (!personal.phone) { score -= 5; feedback.push("Missing Phone Number."); }
+    if (experience.length === 0) { score -= 20; feedback.push("Critical: No experience listed. Add internships or jobs."); }
+    if (education.length === 0) { score -= 10; feedback.push("Critical: No education listed."); }
+    if (!skills || skills.length < 5) { score -= 10; feedback.push("Skills section is empty or too sparse."); }
 
-    // 2. Content Depth (Bullet Points)
+    // 2. Content Depth & Keywords
     let totalBullets = 0;
+    let totalQuantifiable = 0; // Numbers, %, $
+
+    // Helper to check for numbers
+    const hasNumbers = (str) => /\d+%|\$\d+|\d+/.test(str);
+
     experience.forEach(exp => {
         if (exp.details) {
             const bullets = exp.details.split('\n').filter(line => line.trim().length > 10);
             totalBullets += bullets.length;
-            if (bullets.length < 2) {
-                score -= 5;
-                feedback.push(`Role at ${exp.company || 'Unknown'} has very few details.`);
+
+            bullets.forEach(b => {
+                if (hasNumbers(b)) totalQuantifiable++;
+            });
+
+            if (bullets.length < 3) {
+                score -= 3;
+                feedback.push(`Role at ${exp.company || 'Unknown'} could use more detail (aim for 3+ bullets).`);
             }
+        } else {
+            score -= 5;
+            feedback.push(`Role at ${exp.company || 'Unknown'} has no details.`);
         }
     });
 
-    if (totalBullets > 5) strengths.push("Good amount of detail in experience.");
+    if (totalBullets >= 5) strengths.push("Good depth of experience.");
+    if (totalQuantifiable >= 2) {
+        strengths.push("Great use of quantifiable results (numbers/metrics).");
+    } else if (experience.length > 0) {
+        score -= 5;
+        feedback.push("Add more numbers/metrics to your bullet points (e.g., 'Increased sales by 20%').");
+    }
 
     // 3. Action Verbs Check
     let actionVerbCount = 0;
@@ -60,14 +82,21 @@ function analyzeResume(data) {
     if (actionVerbCount < 3 && experience.length > 0) {
         score -= 10;
         feedback.push("Use more strong action verbs (e.g., 'Managed', 'Developed').");
-    } else if (actionVerbCount >= 3) {
-        strengths.push("Strong use of action verbs.");
+    } else if (actionVerbCount >= 5) {
+        strengths.push("Strong vocabulary and action verbs.");
     }
 
     // 4. Summary Check
-    if (!personal.summary || personal.summary.length < 50) {
+    if (!personal.summary || personal.summary.length < 30) {
         score -= 5;
-        feedback.push("Summary is too short or missing. Tell your story!");
+        feedback.push("Profile summary is missing or too short. Add a professional summary.");
+    }
+
+    // 5. Formatting/ATS (Simulated checks)
+    // We assume the generator handles fonts/margins, but warn user about content
+    if (personal.linkedin && !personal.linkedin.includes('linkedin.com')) {
+        score -= 2;
+        feedback.push("LinkedIn URL looks incomplete.");
     }
 
     return {
@@ -78,7 +107,8 @@ function analyzeResume(data) {
     };
 }
 
-// --- HTML Template for Resume ---
+// --- HTML Template for Resume (ATS Optimized) ---
+// Uses clean structure, Arial font, high contrast, single column
 function generateResumeHTML(data) {
     const { personal = {}, experience = [], projects = [], education = [], skills = '' } = data;
 
@@ -89,81 +119,61 @@ function generateResumeHTML(data) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${personal.name || 'Resume'}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Nunito', sans-serif;
-            color: #2d3748;
-            line-height: 1.6;
-            padding: 40px 50px;
+            font-family: Arial, Helvetica, sans-serif; /* ATS Standard */
+            color: #000; /* Pure black for best OCR */
+            line-height: 1.5;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
             background: white;
-            font-size: 13px;
+            font-size: 11pt; /* Standard readable size */
         }
+
+        a { color: #000; text-decoration: none; }
         
         /* Header */
-        header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #edf2f7; padding-bottom: 20px; }
-        h1 { font-size: 28px; font-weight: 800; color: #1a202c; letter-spacing: -0.5px; text-transform: uppercase; margin-bottom: 8px; }
-        .contact { display: flex; justify-content: center; gap: 20px; font-size: 12px; color: #718096; flex-wrap: wrap; }
-        .contact span { display: flex; align-items: center; gap: 5px; }
-        a { color: #3182ce; text-decoration: none; }
+        header { text-align: center; margin-bottom: 20px; border-bottom: 1px solid #000; padding-bottom: 15px; }
+        h1 { font-size: 24pt; font-weight: bold; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 1px; }
+        .contact-info { font-size: 10pt; margin-top: 5px; }
+        .contact-separator { margin: 0 5px; }
 
         /* Sections */
-        section { margin-bottom: 25px; }
-        h2 { 
-            font-size: 14px; 
-            font-weight: 800; 
-            color: #2b6cb0; 
-            text-transform: uppercase; 
-            letter-spacing: 1px; 
-            border-bottom: 1px solid #e2e8f0; 
-            padding-bottom: 5px; 
-            margin-bottom: 15px; 
+        section { margin-bottom: 20px; }
+        h2 {
+            font-size: 14pt;
+            text-transform: uppercase;
+            border-bottom: 1px solid #000;
+            margin: 0 0 10px 0;
+            padding-bottom: 3px;
+            font-weight: bold;
         }
 
-        /* Items */
-        .item { margin-bottom: 15px; page-break-inside: avoid; }
-        .item-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
-        .role { font-size: 14px; font-weight: 700; color: #1a202c; }
-        .date { font-size: 12px; font-weight: 600; color: #718096; }
-        .company { font-size: 13px; color: #4a5568; font-style: italic; margin-bottom: 6px; }
+        /* Entries */
+        .entry { margin-bottom: 12px; }
+        .entry-header { display: flex; justify-content: space-between; align-items: baseline; }
+        .entry-title { font-weight: bold; font-size: 12pt; } /* Role/School */
+        .entry-subtitle { font-style: italic; font-size: 11pt; } /* Company/Degree */
+        .entry-date { font-weight: bold; font-size: 11pt; text-align: right; white-space: nowrap; }
         
-        ul { list-style: none; padding-left: 0; }
-        li { 
-            position: relative; 
-            padding-left: 15px; 
-            margin-bottom: 4px; 
-            color: #4a5568; 
-            text-align: justify;
-        }
-        li::before { 
-            content: "•"; 
-            position: absolute; 
-            left: 0; 
-            color: #cbd5e0; 
-            font-weight: bold; 
-        }
+        /* Lists */
+        ul { margin: 5px 0 0 18px; padding: 0; }
+        li { margin-bottom: 3px; text-align: justify; }
 
         /* Skills */
-        .skills-container { display: flex; flex-wrap: wrap; gap: 8px; }
-        .skill-tag { 
-            background: #f7fafc; 
-            border: 1px solid #edf2f7; 
-            padding: 3px 10px; 
-            border-radius: 9999px; 
-            font-size: 11px; 
-            font-weight: 600; 
-            color: #4a5568; 
-        }
+        .skills-section p { margin: 0; }
     </style>
 </head>
 <body>
     <header>
         <h1>${personal.name || 'Your Name'}</h1>
-        <div class="contact">
-            ${personal.email ? `<span>✉ ${personal.email}</span>` : ''}
-            ${personal.phone ? `<span>� ${personal.phone}</span>` : ''}
-            ${personal.linkedin ? `<span>🔗 ${personal.linkedin.replace(/https?:\/\//, '')}</span>` : ''}
+        <div class="contact-info">
+            ${[
+            personal.email,
+            personal.phone,
+            personal.linkedin ? personal.linkedin.replace(/^https?:\/\//, '') : null
+        ].filter(Boolean).join('<span class="contact-separator">|</span>')}
         </div>
     </header>
 
@@ -177,15 +187,16 @@ function generateResumeHTML(data) {
     <section>
         <h2>Experience</h2>
         ${experience.map(exp => `
-        <div class="item">
-            <div class="item-header">
-                <span class="role">${exp.role}</span>
-                <span class="date">${exp.dates}</span>
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">${exp.role}</span>
+                <span class="entry-date">${exp.dates}</span>
             </div>
-            <div class="company">${exp.company}</div>
+            <div class="entry-subtitle">${exp.company}</div>
+            ${exp.details ? `
             <ul>
-                ${exp.details ? exp.details.split('\n').filter(l => l.trim()).map(l => `<li>${l}</li>`).join('') : ''}
-            </ul>
+                ${exp.details.split('\n').filter(l => l.trim()).map(l => `<li>${l}</li>`).join('')}
+            </ul>` : ''}
         </div>`).join('')}
     </section>` : ''}
 
@@ -193,9 +204,9 @@ function generateResumeHTML(data) {
     <section>
         <h2>Projects</h2>
         ${projects.map(proj => `
-        <div class="item">
-            <div class="item-header">
-                <span class="role">${proj.name}</span>
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">${proj.name}</span>
             </div>
             <p>${proj.description}</p>
         </div>`).join('')}
@@ -205,20 +216,20 @@ function generateResumeHTML(data) {
     <section>
         <h2>Education</h2>
         ${education.map(edu => `
-        <div class="item">
-            <div class="item-header">
-                <span class="role">${edu.school}</span>
-                <span class="date">${edu.year}</span>
+        <div class="entry">
+            <div class="entry-header">
+                <span class="entry-title">${edu.school}</span>
+                <span class="entry-date">${edu.year}</span>
             </div>
-            <div class="company">${edu.degree}</div>
+            <div class="entry-subtitle">${edu.degree}</div>
         </div>`).join('')}
     </section>` : ''}
 
     ${skills ? `
     <section>
         <h2>Skills</h2>
-        <div class="skills-container">
-            ${skills.split(',').map(s => `<span class="skill-tag">${s.trim()}</span>`).join('')}
+        <div class="skills-section">
+            <p>${skills}</p>
         </div>
     </section>` : ''}
 </body>
@@ -359,6 +370,108 @@ function generateResumeDOCX(data) {
     });
 }
 
+// --- PDF Generation Logic ---
+export function generateResumePDF(data, stream) {
+    const { personal = {}, experience = [], projects = [], education = [], skills = '' } = data;
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+
+    doc.pipe(stream);
+
+    // Fonts
+    doc.font('Helvetica');
+
+    // --- content ---
+
+    // Header
+    doc.fontSize(24).text(personal.name || 'Resume', { align: 'center' });
+    doc.moveDown(0.5);
+
+    const contactLine = [
+        personal.email,
+        personal.phone,
+        personal.linkedin ? personal.linkedin.replace(/^https?:\/\//, '') : null
+    ].filter(Boolean).join(' | ');
+
+    doc.fontSize(10).text(contactLine, { align: 'center' });
+    doc.moveDown(1.5);
+
+    // Helper for Sections
+    const drawSectionHeader = (title) => {
+        doc.font('Helvetica-Bold').fontSize(14).text(title.toUpperCase());
+        doc.moveTo(doc.x, doc.y + 2).lineTo(doc.page.width - 50, doc.y + 2).stroke();
+        doc.moveDown(0.8);
+        doc.font('Helvetica').fontSize(11);
+    };
+
+    // Summary
+    if (personal.summary) {
+        drawSectionHeader('Professional Summary');
+        doc.text(personal.summary, { align: 'justify' });
+        doc.moveDown(1);
+    }
+
+    // Experience
+    if (experience.length > 0) {
+        drawSectionHeader('Experience');
+        experience.forEach(exp => {
+            // Title Line: Role (Left) -- Dates (Right)
+            const startY = doc.y;
+            doc.font('Helvetica-Bold').text(exp.role || 'Role', { continued: true });
+            doc.font('Helvetica-Bold').text(exp.dates || '', { align: 'right' });
+
+            // Company
+            doc.font('Helvetica-Oblique').text(exp.company || 'Company');
+
+            // Details (Bullets)
+            doc.font('Helvetica');
+            if (exp.details) {
+                const bullets = exp.details.split('\n').filter(l => l.trim());
+                bullets.forEach(b => {
+                    doc.text(`• ${b}`, { indent: 10, align: 'justify' });
+                });
+            }
+            doc.moveDown(0.5);
+        });
+        doc.moveDown(0.5);
+    }
+
+    // Projects
+    if (projects.length > 0) {
+        drawSectionHeader('Projects');
+        projects.forEach(proj => {
+            doc.font('Helvetica-Bold').text(proj.name || 'Project');
+            doc.font('Helvetica').text(proj.description || '');
+            doc.moveDown(0.5);
+        });
+        doc.moveDown(0.5);
+    }
+
+    // Education
+    if (education.length > 0) {
+        drawSectionHeader('Education');
+        education.forEach(edu => {
+            doc.font('Helvetica-Bold').text(edu.school || 'School', { continued: true });
+            doc.font('Helvetica-Bold').text(edu.year || '', { align: 'right' });
+            doc.font('Helvetica').text(edu.degree || 'Degree');
+            doc.moveDown(0.5);
+        });
+        doc.moveDown(0.5);
+    }
+
+    // Skills
+    if (skills) {
+        drawSectionHeader('Skills');
+        doc.text(skills);
+        doc.moveDown();
+    }
+
+    console.log('Finalizing PDF...');
+    doc.end();
+    console.log('PDF Finalized.');
+}
+
+export { analyzeResume, generateResumeDOCX };
+
 // --- Endpoints ---
 
 app.post('/api/analyze', (req, res) => {
@@ -373,7 +486,7 @@ app.post('/api/analyze', (req, res) => {
 // --- Document Generation Endpoint ---
 app.post('/api/generate', async (req, res) => {
     const data = req.body;
-    const { personal = {} } = data;
+    const { personal = {}, experience = [], projects = [], education = [], skills = '' } = data;
     const format = req.query.format || 'pdf'; // 'pdf' or 'docx'
 
     try {
@@ -387,36 +500,13 @@ app.post('/api/generate', async (req, res) => {
             res.setHeader('Content-Disposition', `attachment; filename = "${fileName}.docx"`);
             res.send(buffer);
         } else {
-            // Default to PDF
-            const puppeteer = (await import('puppeteer')).default;
-            const browser = await puppeteer.launch({
-                headless: 'new',
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--single-process', // Often needed in lightweight environments
-                    '--no-zygote'
-                ]
-            });
-
-            const page = await browser.newPage();
-            const html = generateResumeHTML(data);
-
-            // Wait for fonts to load
-            await page.setContent(html, { waitUntil: 'networkidle0' });
-
-            const pdfBuffer = await page.pdf({
-                format: 'A4',
-                printBackground: true,
-                margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' }
-            });
-
-            await browser.close();
+            // PDFKit Implementation
+            console.log('Generating PDF with PDFKit...');
 
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename = "${fileName}.pdf"`);
-            res.send(pdfBuffer);
+
+            generateResumePDF(data, res);
         }
 
     } catch (error) {
@@ -439,6 +529,8 @@ app.use((req, res, next) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
+    });
+}
