@@ -129,6 +129,38 @@ export default function Builder() {
         }
     };
 
+    const handleUpload = async (file) => {
+        setLoading(true);
+        setError(null);
+
+        const formData = new FormData();
+        formData.append('resume', file);
+
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData // No headers needed, browser sets multipart/form-data
+            });
+
+            if (!response.ok) throw new Error('Upload failed');
+
+            const data = await response.json();
+
+            // Merge parsed data
+            setFormData(prev => ({
+                ...prev,
+                ...data
+            }));
+
+            alert('Resume parsed! Please review the sections.');
+        } catch (err) {
+            console.error(err);
+            setError('Failed to upload/parse resume.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Helper to get correct data slice
     const getCurrentData = () => {
         const stepId = Steps[currentStep].id;
@@ -145,6 +177,7 @@ export default function Builder() {
                 error={error}
                 generateCV={generateCV}
                 loading={loading}
+                onUpload={handleUpload}
             />
 
             <main className="flex-1 min-w-0">

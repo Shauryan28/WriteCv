@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 
-export default function Sidebar({ steps, currentStep, setCurrentStep, error, generateCV, loading }) {
+import { Upload } from 'lucide-react';
+export default function Sidebar({ steps, currentStep, setCurrentStep, error, generateCV, loading, onUpload }) {
+    const fileInputRef = React.useRef(null);
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            onUpload(file);
+        }
+    };
 
     return (
         <aside className="w-full md:w-80 flex-shrink-0 mb-8 md:mb-0 space-y-8">
@@ -15,6 +24,25 @@ export default function Sidebar({ steps, currentStep, setCurrentStep, error, gen
                 >
                     <h2 className="text-2xl font-bold font-sketch mb-1 text-ink">CHAPTERS</h2>
                     <div className="h-2 w-24 mb-6 bg-repeat-x opacity-60" style={{ backgroundImage: "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCA0IiBmaWxsPSJub25lIiBzdHJva2U9IiMxMTExMTEiIHN0cm9rZS13aWR0aD0iMiI+PHBhdGggZD0iTTAgM3E1LS41IDEwIDB0MTAgMCIvPjwvc3ZnPg==')" }}></div>
+
+                    {/* Import Button */}
+                    <div className="mb-6 relative group">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept=".pdf,.docx"
+                            onChange={handleFileChange}
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-full border-2 border-dashed border-gray-400 p-2 rounded-lg font-hand text-gray-500 hover:text-ink hover:border-black hover:bg-white/50 transition-all flex items-center justify-center gap-2 group-hover:-rotate-1"
+                        >
+                            <Upload size={18} />
+                            <span>Import Resume</span>
+                        </button>
+                        <p className="text-xs text-center mt-1 text-gray-400 font-hand">Auto-fill from PDF/DOCX</p>
+                    </div>
 
                     <ul className="space-y-4">
                         {steps.map((step, index) => (

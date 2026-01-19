@@ -4,8 +4,15 @@ import bodyParser from 'body-parser';
 // import puppeteer from 'puppeteer'; // Lazy load instead
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+const pdfParse = require('pdf-parse');
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, TabStopType, TabStopPosition } from 'docx';
 import PDFDocument from 'pdfkit';
+import multer from 'multer';
+import mammoth from 'mammoth';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -560,6 +567,134 @@ export { analyzeResume, generateResumeDOCX };
 
 // --- Endpoints ---
 
+// --- Upload & Parse Logic ---
+const upload = multer({ storage: multer.memoryStorage() });
+
+function extractContactInfo(text) {
+    const emailRegex = /[\w.-]+@[\w.-]+\.\w+/;
+    const phoneRegex = /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/;
+    const linkRegex = /https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.com|[a-zA-Z0-9-]+\.dev/g;
+
+    const emailMatch = text.match(emailRegex);
+    const phoneMatch = text.match(phoneRegex);
+    const links = text.match(linkRegex) || [];
+
+    let website = '';
+    let linkedin = '';
+
+    links.forEach(link => {
+        if (link.includes('linkedin')) linkedin = link;
+        else if (!website && !link.includes('@')) website = link; // First non-linkedin link
+    });
+
+    return {
+        email: emailMatch ? emailMatch[0] : '',
+        phone: phoneMatch ? phoneMatch[0] : '',
+        website,
+        linkedin
+    };
+}
+
+function parseResumeSections(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const sections = {
+        summary: [],
+        experience: [],
+        projects: [],
+        education: [],
+        skills: []
+    };
+
+    let currentSection = 'summary'; // Default to summary or personal
+    const headerPatterns = {
+        experience: /experience|work history|employment|career/i,
+        education: /education|academic|background/i,
+        projects: /projects|portfolio/i,
+        skills: /skills|technologies|proficiencies/i,
+        summary: /summary|profile|about|objective/i
+    };
+
+    // Skip first few lines assuming they are Name/Title
+    let startIdx = 0;
+    if (lines.length > 0) startIdx = Math.min(lines.length, 5); // Simplistic skip
+
+    for (let i = startIdx; i < lines.length; i++) {
+        const line = lines[i];
+        let isHeader = false;
+
+        // Check for section headers
+        for (const [key, regex] of Object.entries(headerPatterns)) {
+            if (regex.test(line) && line.split(' ').length < 5) { // Headers are usually short
+                currentSection = key;
+                isHeader = true;
+                break;
+            }
+        }
+
+        if (!isHeader) {
+            sections[currentSection].push(line);
+        }
+    }
+
+    return sections;
+}
+
+function processParsedData(rawSections, contactInfo, fullText) {
+    // 1. Personal
+    const nameLine = fullText.split('\n')[0].trim(); // Naive assumption: Name is first line
+    const personal = {
+        name: nameLine || '',
+        email: contactInfo.email,
+        phone: contactInfo.phone,
+        linkedin: contactInfo.linkedin,
+        website: contactInfo.website,
+        location: '', // Hard to extract reliably without NLP
+        summary: rawSections.summary.join(' ')
+    };
+
+    // 2. Experience (Basic Chunking)
+    // We look for patterns like dates or company names? Hard rule-based.
+    // Instead, we just dump text into the first item if specific structure isn't found.
+    // Enhanced: Try to find blocks.
+    const experience = [];
+    if (rawSections.experience.length > 0) {
+        // Naive: Just one big block for now, or split by simple heuristics?
+        // Let's make one "Imported Role" and put everything in details
+        experience.push({
+            role: 'Imported Role',
+            company: 'See Details',
+            dates: 'Various',
+            location: '',
+            details: rawSections.experience.join('\n')
+        });
+    }
+
+    // 3. Education
+    const education = [];
+    if (rawSections.education.length > 0) {
+        education.push({
+            school: rawSections.education[0] || 'Imported School',
+            degree: 'See Details',
+            year: '',
+            location: ''
+        });
+    }
+
+    // 4. Projects
+    const projects = [];
+    if (rawSections.projects.length > 0) {
+        projects.push({
+            name: 'Imported Projects',
+            description: rawSections.projects.join('\n')
+        });
+    }
+
+    // 5. Skills
+    const skills = rawSections.skills.join(', ');
+
+    return { personal, experience, projects, education, skills };
+}
+
 app.post('/api/analyze', (req, res) => {
     try {
         const analysis = analyzeResume(req.body);
@@ -570,6 +705,41 @@ app.post('/api/analyze', (req, res) => {
 });
 
 // --- Document Generation Endpoint ---
+app.post('/api/upload', upload.single('resume'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        let text = '';
+        if (req.file.mimetype === 'application/pdf') {
+            // Unpack pdfParse if it's wrapped in default (common issue with require in ESM)
+            const parseFn = typeof pdfParse === 'function' ? pdfParse : pdfParse.default;
+            if (typeof parseFn !== 'function') {
+                throw new Error('pdf-parse library not loaded correctly');
+            }
+            const data = await parseFn(req.file.buffer);
+            text = data.text;
+        } else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+            const result = await mammoth.extractRawText({ buffer: req.file.buffer });
+            text = result.value;
+        } else {
+            return res.status(400).json({ error: 'Unsupported file type. Use PDF or DOCX.' });
+        }
+
+        // Parse Text
+        const contactInfo = extractContactInfo(text);
+        const rawSections = parseResumeSections(text);
+        const structure = processParsedData(rawSections, contactInfo, text);
+
+        res.json(structure);
+
+    } catch (error) {
+        console.error('Upload Parse Error:', error);
+        res.status(500).json({ error: 'Failed to parse resume' });
+    }
+});
+
 app.post('/api/generate', async (req, res) => {
     const data = req.body;
     const { personal = {}, experience = [], projects = [], education = [], skills = '' } = data;
