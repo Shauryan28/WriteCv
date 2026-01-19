@@ -16,6 +16,7 @@ const Steps = [
             { name: 'role', type: 'text' },
             { name: 'company', type: 'text' },
             { name: 'dates', type: 'text' },
+            { name: 'location', type: 'text' }, // New
             { name: 'details', type: 'textarea' }
         ]
     },
@@ -24,7 +25,9 @@ const Steps = [
         title: 'Projects',
         fields: [
             { name: 'name', type: 'text' },
-            { name: 'description', type: 'textarea' }
+            { name: 'description', type: 'textarea' },
+            { name: 'technologies', type: 'text' }, // New
+            { name: 'link', type: 'text' } // New
         ]
     },
     {
@@ -49,7 +52,7 @@ export default function Builder() {
     const [error, setError] = useState(null);
 
     const [formData, setFormData] = useState({
-        personal: { name: '', email: '', phone: '', linkedin: '', summary: '' },
+        personal: { name: '', email: '', phone: '', linkedin: '', location: '', website: '', summary: '' },
         experience: [],
         projects: [],
         education: [],
@@ -74,8 +77,8 @@ export default function Builder() {
     const addItem = () => {
         const sectionId = Steps[currentStep].id;
         let template = {};
-        if (sectionId === 'experience') template = { company: '', role: '', dates: '', details: '' };
-        if (sectionId === 'projects') template = { name: '', description: '' };
+        if (sectionId === 'experience') template = { company: '', role: '', dates: '', location: '', details: '' };
+        if (sectionId === 'projects') template = { name: '', description: '', technologies: '', link: '' };
         if (sectionId === 'education') template = { school: '', degree: '', year: '' };
 
         setFormData(prev => ({ ...prev, [sectionId]: [...prev[sectionId], template] }));

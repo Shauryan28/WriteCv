@@ -15,6 +15,8 @@ export default function FormPage({ step, data, onChange, onAdd, onRemove }) {
                             <InputGroup label="Ring me at..." value={data.phone} onChange={(v) => onChange('personal', 'phone', v)} placeholder="+1 (555) 123-4567" />
                             <InputGroup label="Send mail to..." value={data.email} onChange={(v) => onChange('personal', 'email', v)} placeholder="you@example.com" />
                             <InputGroup label="Find me online at..." value={data.linkedin} onChange={(v) => onChange('personal', 'linkedin', v)} placeholder="linkedin.com/in/you" />
+                            <InputGroup label="I live in..." value={data.location} onChange={(v) => onChange('personal', 'location', v)} placeholder="City, Country" />
+                            <InputGroup label="My Portfolio/Website..." value={data.website} onChange={(v) => onChange('personal', 'website', v)} placeholder="mysite.com" />
 
                             <div className="pt-4">
                                 <label className="block text-xl font-bold font-hand text-gray-500 mb-2">The short version (Summary)...</label>
@@ -158,6 +160,9 @@ function getLabelForField(fieldName) {
         year: "Class of...",
         name: "Project Name",
         description: "What did you build?",
+        location: "Where was this?",
+        technologies: "Tech Stack (Comma sep)",
+        link: "Project Link/Demo",
     };
     return labels[fieldName] || fieldName;
 }

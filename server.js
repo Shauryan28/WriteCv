@@ -265,7 +265,10 @@ function generateResumeDOCX(data) {
             children: [
                 new TextRun({ text: personal.email ? `${personal.email} | ` : '' }),
                 new TextRun({ text: personal.phone ? `${personal.phone} | ` : '' }),
+                new TextRun({ text: personal.location ? `${personal.location} | ` : '' }),
+                new TextRun({ text: personal.website ? `${personal.website} | ` : '' }),
                 new TextRun({ text: personal.linkedin ? `${personal.linkedin}` : '' }),
+                // Cleanup trailing separator if needed, but for now simple stacking works
             ],
             spacing: { after: 200 },
         })
@@ -300,6 +303,20 @@ function generateResumeDOCX(data) {
                 })
             );
 
+            if (exp.location) {
+                children.push(
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: exp.location,
+                                italics: true,
+                            }),
+                        ],
+                        alignment: AlignmentType.RIGHT,
+                    })
+                );
+            }
+
             if (exp.details) {
                 const bullets = exp.details.split('\n').filter(l => l.trim());
                 bullets.forEach(bullet => {
@@ -325,7 +342,11 @@ function generateResumeDOCX(data) {
                 })
             );
             children.push(new Paragraph({
-                text: proj.description || '',
+                children: [
+                    new TextRun({ text: proj.link ? `${proj.link}\n` : '', color: '0563C1', underline: {} }),
+                    new TextRun({ text: proj.technologies ? `Stack: ${proj.technologies}\n` : '', italics: true }),
+                    new TextRun({ text: proj.description || '' }),
+                ],
                 spacing: { after: 100 },
             }));
         });
@@ -371,103 +392,168 @@ function generateResumeDOCX(data) {
 }
 
 // --- PDF Generation Logic ---
-export function generateResumePDF(data, stream) {
-    const { personal = {}, experience = [], projects = [], education = [], skills = '' } = data;
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+export function generateResumePDF(data) {
+    return new Promise((resolve, reject) => {
+        const { personal = {}, experience = [], projects = [], education = [], skills = '' } = data;
+        const doc = new PDFDocument({ margin: 50, size: 'A4' });
+        const buffers = [];
 
-    doc.pipe(stream);
-
-    // Fonts
-    doc.font('Helvetica');
-
-    // --- content ---
-
-    // Header
-    doc.fontSize(24).text(personal.name || 'Resume', { align: 'center' });
-    doc.moveDown(0.5);
-
-    const contactLine = [
-        personal.email,
-        personal.phone,
-        personal.linkedin ? personal.linkedin.replace(/^https?:\/\//, '') : null
-    ].filter(Boolean).join(' | ');
-
-    doc.fontSize(10).text(contactLine, { align: 'center' });
-    doc.moveDown(1.5);
-
-    // Helper for Sections
-    const drawSectionHeader = (title) => {
-        doc.font('Helvetica-Bold').fontSize(14).text(title.toUpperCase());
-        doc.moveTo(doc.x, doc.y + 2).lineTo(doc.page.width - 50, doc.y + 2).stroke();
-        doc.moveDown(0.8);
-        doc.font('Helvetica').fontSize(11);
-    };
-
-    // Summary
-    if (personal.summary) {
-        drawSectionHeader('Professional Summary');
-        doc.text(personal.summary, { align: 'justify' });
-        doc.moveDown(1);
-    }
-
-    // Experience
-    if (experience.length > 0) {
-        drawSectionHeader('Experience');
-        experience.forEach(exp => {
-            // Title Line: Role (Left) -- Dates (Right)
-            const startY = doc.y;
-            doc.font('Helvetica-Bold').text(exp.role || 'Role', { continued: true });
-            doc.font('Helvetica-Bold').text(exp.dates || '', { align: 'right' });
-
-            // Company
-            doc.font('Helvetica-Oblique').text(exp.company || 'Company');
-
-            // Details (Bullets)
-            doc.font('Helvetica');
-            if (exp.details) {
-                const bullets = exp.details.split('\n').filter(l => l.trim());
-                bullets.forEach(b => {
-                    doc.text(`• ${b}`, { indent: 10, align: 'justify' });
-                });
-            }
-            doc.moveDown(0.5);
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => {
+            const pdfData = Buffer.concat(buffers);
+            resolve(pdfData);
         });
-        doc.moveDown(0.5);
-    }
+        doc.on('error', reject);
 
-    // Projects
-    if (projects.length > 0) {
-        drawSectionHeader('Projects');
-        projects.forEach(proj => {
-            doc.font('Helvetica-Bold').text(proj.name || 'Project');
-            doc.font('Helvetica').text(proj.description || '');
+        // Fonts
+        doc.font('Helvetica');
+
+        // --- Content ---
+
+        // Header
+        doc.fontSize(24).font('Helvetica-Bold').text(personal.name || 'Resume', { align: 'center' });
+        doc.moveDown(0.2);
+
+        const contactLine = [
+            personal.email,
+            personal.phone,
+            personal.location,
+            personal.website ? personal.website.replace(/^https?:\/\//, '') : null,
+            personal.linkedin ? personal.linkedin.replace(/^https?:\/\//, '') : null
+        ].filter(Boolean).join('  |  ');
+
+        doc.fontSize(10).font('Helvetica').text(contactLine, { align: 'center' });
+        doc.moveDown(1.0);
+
+        // Divider
+        doc.moveTo(50, doc.y).lineTo(595 - 50, doc.y).strokeColor('#aaaaaa').stroke().strokeColor('#000000');
+        doc.moveDown(1.5);
+
+        // Helper for Sections
+        const drawSectionHeader = (title) => {
             doc.moveDown(0.5);
-        });
-        doc.moveDown(0.5);
-    }
+            doc.font('Helvetica-Bold').fontSize(12).text(title.toUpperCase(), { characterSpacing: 1 });
+            doc.moveTo(doc.x, doc.y + 4).lineTo(doc.page.width - 50, doc.y + 4).stroke();
+            doc.moveDown(0.8);
+            doc.font('Helvetica').fontSize(10);
+        };
 
-    // Education
-    if (education.length > 0) {
-        drawSectionHeader('Education');
-        education.forEach(edu => {
-            doc.font('Helvetica-Bold').text(edu.school || 'School', { continued: true });
-            doc.font('Helvetica-Bold').text(edu.year || '', { align: 'right' });
-            doc.font('Helvetica').text(edu.degree || 'Degree');
+        // Summary
+        if (personal.summary) {
+            drawSectionHeader('Professional Summary');
+            doc.text(personal.summary, { align: 'justify', lineGap: 2 });
+            doc.moveDown(1);
+        }
+
+        // Experience
+        if (experience.length > 0) {
+            drawSectionHeader('Experience');
+            experience.forEach(exp => {
+                const startY = doc.y;
+
+                // Date (Right Aligned)
+                // We draw date first to ensure it fits, or we just position it manually
+                const dateText = exp.dates || '';
+                const dateWidth = doc.widthOfString(dateText, { font: 'Helvetica-Bold', fontSize: 10 });
+
+                doc.font('Helvetica-Bold').fontSize(10);
+                doc.text(dateText, 595 - 50 - dateWidth, startY); // Right aligned manually
+
+                // Location (Below Date, Right Aligned)
+                if (exp.location) {
+                    const locWidth = doc.widthOfString(exp.location, { font: 'Helvetica-Oblique', fontSize: 9 });
+                    doc.font('Helvetica-Oblique').fontSize(9).text(exp.location, 595 - 50 - locWidth, startY + 12);
+                }
+
+                // Role (Left Aligned)
+                doc.font('Helvetica-Bold').fontSize(10);
+                doc.text(exp.role || 'Role', 50, startY, { width: 595 - 100 - dateWidth });
+
+                // Company
+                doc.moveDown(0.2);
+                doc.font('Helvetica-Oblique').fontSize(10).text(exp.company || 'Company');
+                doc.moveDown(0.3);
+
+                // Details (Bullets)
+                doc.font('Helvetica');
+                if (exp.details) {
+                    const bullets = exp.details.split('\n').filter(l => l.trim());
+                    bullets.forEach(b => {
+                        // Hanging indent simulation
+                        const bulletX = 65;
+                        const textX = 80;
+                        const currentY = doc.y;
+
+                        doc.text('•', bulletX, currentY);
+                        doc.text(b, textX, currentY, { width: 595 - 50 - textX, align: 'justify' });
+                        doc.moveDown(0.2);
+                    });
+                }
+                doc.moveDown(0.8);
+            });
+        }
+
+        // Projects
+        if (projects.length > 0) {
+            drawSectionHeader('Projects');
+            projects.forEach(proj => {
+                const startY = doc.y;
+                doc.font('Helvetica-Bold').text(proj.name || 'Project');
+
+                if (proj.link) {
+                    const linkText = proj.link.replace(/^https?:\/\//, '');
+                    const linkWidth = doc.widthOfString(linkText, { fontSize: 9 });
+                    doc.font('Helvetica').fontSize(9).text(linkText, 595 - 50 - linkWidth, startY, {
+                        link: proj.link,
+                        underline: true,
+                        color: 'blue'
+                    });
+                    doc.fillColor('black'); // Reset color
+                }
+
+                if (proj.technologies) {
+                    doc.font('Helvetica-Oblique').fontSize(9).text(proj.technologies);
+                    doc.moveDown(0.2);
+                }
+
+                doc.font('Helvetica').fontSize(10).text(proj.description || '', { align: 'justify' });
+                doc.moveDown(0.5);
+            });
             doc.moveDown(0.5);
-        });
-        doc.moveDown(0.5);
-    }
+        }
 
-    // Skills
-    if (skills) {
-        drawSectionHeader('Skills');
-        doc.text(skills);
-        doc.moveDown();
-    }
+        // Education
+        if (education.length > 0) {
+            drawSectionHeader('Education');
+            education.forEach(edu => {
+                const startY = doc.y;
 
-    console.log('Finalizing PDF...');
-    doc.end();
-    console.log('PDF Finalized.');
+                // Date (Right)
+                const dateText = edu.year || '';
+                const dateWidth = doc.widthOfString(dateText, { font: 'Helvetica-Bold', fontSize: 10 });
+                doc.font('Helvetica-Bold').text(dateText, 595 - 50 - dateWidth, startY);
+
+                // School (Left)
+                doc.text(edu.school || 'School', 50, startY, { width: 595 - 100 - dateWidth });
+
+                // Degree
+                doc.moveDown(0.2);
+                doc.font('Helvetica').text(edu.degree || 'Degree');
+                doc.moveDown(0.5);
+            });
+            doc.moveDown(0.5);
+        }
+
+        // Skills
+        if (skills) {
+            drawSectionHeader('Skills');
+            doc.text(skills, { align: 'justify' });
+            doc.moveDown();
+        }
+
+        console.log('Finalizing PDF...');
+        doc.end();
+    }); // End Promise
 }
 
 export { analyzeResume, generateResumeDOCX };
@@ -490,7 +576,7 @@ app.post('/api/generate', async (req, res) => {
     const format = req.query.format || 'pdf'; // 'pdf' or 'docx'
 
     try {
-        const fileName = `${personal.name ? personal.name.replace(/\s+/g, '_') : 'Resume'} `;
+        const fileName = `${personal.name ? personal.name.replace(/\s+/g, '_') : 'Resume'}`; // Fixed trailing space
 
         if (format === 'docx') {
             const doc = generateResumeDOCX(data);
@@ -502,11 +588,11 @@ app.post('/api/generate', async (req, res) => {
         } else {
             // PDFKit Implementation
             console.log('Generating PDF with PDFKit...');
+            const buffer = await generateResumePDF(data);
 
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename = "${fileName}.pdf"`);
-
-            generateResumePDF(data, res);
+            res.send(buffer);
         }
 
     } catch (error) {
