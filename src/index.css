@@ -97,7 +97,38 @@ body {
   background: transparent;
 }
 
-.sidebar-scroll::-webkit-scrollbar-thumb {
-  background-color: #e5e7eb;
-  border-radius: 10px;
+
+/* Animations */
+@keyframes wiggle {
+
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+.animate-wiggle:hover {
+  animation: wiggle 0.5s ease-in-out infinite;
+}
+
+/* Doodle Underline Animation */
+.doodle-link {
+  position: relative;
+  text-decoration: none;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAnIHByZXNlcnZlQXNwZWN0UmF0aW89J25vbmUnPjxwYXRoIGQ9J00wIDUgUSA1MCAxMCwgMTAwIDUnIHN0cm9rZT0nIzExMTExMScgc3Ryb2tlLXdpZHRoPSczJyBmaWxsPSJub25lIiAvPjwvc3ZnPg==");
+  background-repeat: no-repeat;
+  background-size: 0% 8px;
+  background-position: 0% 100%;
+  transition: background-size 0.3s ease-in-out;
+  padding-bottom: 5px;
+  /* Space for the underline */
+}
+
+.doodle-link:hover {
+  background-size: 100% 8px;
+  color: var(--color-ink);
 }

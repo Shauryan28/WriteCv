@@ -22,13 +22,13 @@ export default function Navbar() {
                 {/* Desktop Menu */}
                 <div className="hidden md:flex items-center gap-8">
                     <div className="flex gap-6 text-lg font-bold font-sketch text-gray-800">
-                        <Link to="/" className="hover:underline decoration-wavy decoration-2 underline-offset-4 hover:text-black transition-all rotate-1">
+                        <Link to="/" className="doodle-link transition-all rotate-1">
                             Home
                         </Link>
-                        <Link to="/about" className="hover:underline decoration-wavy decoration-2 underline-offset-4 hover:text-black transition-all -rotate-1">
+                        <Link to="/about" className="doodle-link transition-all -rotate-1">
                             About
                         </Link>
-                        <Link to="/analyse" className="hover:underline decoration-wavy decoration-2 underline-offset-4 hover:text-black transition-all rotate-1 text-emerald-700">
+                        <Link to="/analyse" className="doodle-link transition-all rotate-1 text-emerald-700">
                             Check Score
                         </Link>
                         <a href="https://github.com/Shauryan28/WriteCv" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-black transition-colors rotate-1 hover:scale-110">
