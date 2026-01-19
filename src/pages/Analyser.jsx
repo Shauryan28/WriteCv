@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, FileText, CheckCircle, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, ShieldCheck, TrendingUp, Award, Target } from 'lucide-react';
 import axios from 'axios';
 
 export default function Analyser() {
@@ -9,63 +9,64 @@ export default function Analyser() {
     const [analyzing, setAnalyzing] = useState(false);
     const [result, setResult] = useState(null);
 
-    // Simulated Analysis (since we don't have a backend parser for PDFs yet, we analyze text)
-    const analyzeText = () => {
+    const analyzeText = async () => {
         setAnalyzing(true);
-        setTimeout(() => {
+        try {
+            // Parse the pasted text into a simple structure
             const words = text.split(/\s+/).length;
-            const actionVerbs = ['managed', 'led', 'developed', 'created', 'implemented', 'optimized', 'engineered', 'analyzed', 'designed'];
-            const foundVerbs = actionVerbs.filter(v => text.toLowerCase().includes(v));
 
-            let score = 60; // Base score
-            const feedback = [];
-            const strengths = [];
+            // Create a mock data structure from the text
+            const mockData = {
+                personal: {
+                    name: 'Analyzed User',
+                    email: text.includes('@') ? text.match(/[\w.-]+@[\w.-]+\.\w+/)?.[0] || '' : '',
+                    phone: text.match(/\d{3}.*\d{3}.*\d{4}/)?.[0] || '',
+                    summary: text.substring(0, Math.min(200, text.length))
+                },
+                experience: words > 100 ? [{ company: 'Sample', details: text }] : [],
+                projects: [],
+                education: [],
+                skills: text.substring(0, 100)
+            };
 
-            // Scoring Logic
-            if (words > 200) { score += 10; strengths.push("Good length (200+ words)."); }
-            else { score -= 10; feedback.push("Too short. Aim for 400-600 words."); }
-
-            if (foundVerbs.length >= 3) { score += 15; strengths.push(`Used strong verbs: ${foundVerbs.slice(0, 3).join(', ')}`); }
-            else { score -= 10; feedback.push("Lack of action verbs. Use words like 'Led', 'Developed'."); }
-
-            if (text.toLowerCase().includes('email') && text.toLowerCase().includes('@')) { score += 5; }
-            else { feedback.push("Contact info might be missing."); }
-
-            // Random "ATS" check simulation
-            const atsKeywords = ['teamwork', 'communication', 'leadership', 'project', 'skills', 'experience'];
-            const foundKeywords = atsKeywords.filter(k => text.toLowerCase().includes(k));
-            if (foundKeywords.length > 3) { score += 10; strengths.push("Good use of standard keywords."); }
-
-            setResult({
-                score: Math.min(100, Math.max(0, score)),
-                grade: score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B' : 'C',
-                feedback,
-                strengths,
-                atsScore: Math.round(score * 0.9) // slightly stricter ATS score
-            });
+            const response = await axios.post('/api/analyze', mockData);
+            setResult(response.data);
+        } catch (error) {
+            console.error('Analysis failed:', error);
+        } finally {
             setAnalyzing(false);
-        }, 2000);
+        }
     };
 
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
             setFileName(file.name);
-            // In a real app, we'd upload this to get parsed.
-            // For now, if it's a text file, we read it. If PDF, we mock "Read successful".
             if (file.type === 'text/plain') {
                 const reader = new FileReader();
                 reader.onload = (e) => setText(e.target.result);
                 reader.readAsText(file);
             } else {
-                // Mock text for PDFs since we can't parse client-side easily without libs
-                setText("Uploaded resume content placeholder... (Real PDF parsing requires backend service).");
+                setText("Uploaded resume content placeholder...");
             }
         }
     };
 
+    const getScoreColor = (score) => {
+        if (score >= 85) return 'text-green-600';
+        if (score >= 70) return 'text-yellow-600';
+        return 'text-red-600';
+    };
+
+    const getGradeColor = (grade) => {
+        if (grade.startsWith('A')) return 'bg-green-600';
+        if (grade.startsWith('B')) return 'bg-yellow-500';
+        if (grade.startsWith('C')) return 'bg-orange-500';
+        return 'bg-red-500';
+    };
+
     return (
-        <div className="pt-28 pb-20 min-h-screen max-w-5xl mx-auto px-4 font-hand">
+        <div className="pt-28 pb-20 min-h-screen max-w-6xl mx-auto px-4 font-hand">
 
             {/* Header */}
             <div className="text-center mb-12">
@@ -77,9 +78,8 @@ export default function Analyser() {
                     Resume <span className="text-emerald-600 decoration-wavy underline">Health Check</span>
                 </motion.h1>
                 <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                    Is your resume ready for the robots? Upload your CV or paste the text to get an instant
-                    <span className="font-bold text-black border-b-2 border-yellow-300 mx-1">ATS Score</span>
-                    and actionable feedback.
+                    Get a comprehensive <span className="font-bold text-black border-b-2 border-yellow-300 mx-1">ATS Score</span>
+                    with category breakdowns and actionable feedback.
                 </p>
             </div>
 
@@ -121,49 +121,109 @@ export default function Analyser() {
 
                 {/* Results Section */}
                 <div className="space-y-6">
-                    {/* Report Card */}
                     {result ? (
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="bg-white p-6 border-2 border-black shadow-[8px_8px_0px_0px_rgba(200,0,0,1)] relative rotate-1"
-                        >
-                            <div className="absolute -top-4 -right-4 w-20 h-20 bg-red-600 text-white rounded-full flex items-center justify-center text-4xl font-bold font-sketch shadow-lg rotate-12 border-4 border-white">
-                                {result.grade}
-                            </div>
+                        <>
+                            {/* Main Score Card */}
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                className="bg-white p-6 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative"
+                            >
+                                <div className={`absolute -top-4 -right-4 w-20 h-20 ${getGradeColor(result.grade)} text-white rounded-full flex items-center justify-center text-4xl font-bold font-sketch shadow-lg rotate-12 border-4 border-white`}>
+                                    {result.grade}
+                                </div>
 
-                            <h2 className="text-2xl font-bold font-sketch text-red-700 mb-4 border-b-2 border-red-100 pb-2">TEACHER'S REPORT</h2>
+                                <h2 className="text-2xl font-bold font-sketch text-black mb-4 border-b-2 border-gray-200 pb-2 flex items-center gap-2">
+                                    <Award /> SCORE REPORT
+                                </h2>
 
-                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                <div className="bg-gray-50 p-3 rounded border border-gray-200 text-center">
-                                    <span className="block text-gray-500 text-xs uppercase font-bold">Overall Score</span>
-                                    <span className="text-3xl font-black text-black">{result.score}/100</span>
+                                <div className="grid grid-cols-2 gap-4 mb-6">
+                                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border-2 border-black text-center transform -rotate-1">
+                                        <span className="block text-gray-600 text-xs uppercase font-bold mb-1">Overall Score</span>
+                                        <span className={`text-4xl font-black ${getScoreColor(result.score)}`}>{result.score}/100</span>
+                                    </div>
+                                    <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-4 rounded-lg border-2 border-black text-center transform rotate-1">
+                                        <span className="block text-gray-600 text-xs uppercase font-bold mb-1">ATS Score</span>
+                                        <span className={`text-4xl font-black ${getScoreColor(result.atsScore)}`}>{result.atsScore}%</span>
+                                    </div>
                                 </div>
-                                <div className="bg-yellow-50 p-3 rounded border border-yellow-200 text-center">
-                                    <span className="block text-yellow-700 text-xs uppercase font-bold">ATS Friendly</span>
-                                    <span className="text-3xl font-black text-yellow-600">{result.atsScore}%</span>
-                                </div>
-                            </div>
 
-                            <div className="space-y-4 font-hand text-lg">
-                                <div>
-                                    <p className="flex items-center gap-2 font-bold text-green-700 mb-1">
-                                        <CheckCircle size={18} /> Strengths
-                                    </p>
-                                    <ul className="list-disc pl-5 text-gray-700 text-sm space-y-1">
-                                        {result.strengths.map((s, i) => <li key={i}>{s}</li>)}
-                                    </ul>
-                                </div>
-                                <div>
-                                    <p className="flex items-center gap-2 font-bold text-red-700 mb-1">
-                                        <AlertTriangle size={18} /> Improvements
-                                    </p>
-                                    <ul className="list-disc pl-5 text-gray-700 text-sm space-y-1">
-                                        {result.feedback.map((f, i) => <li key={i}>{f}</li>)}
-                                    </ul>
-                                </div>
-                            </div>
-                        </motion.div>
+                                {/* Category Breakdown */}
+                                {result.categories && (
+                                    <div className="mb-6">
+                                        <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                                            <Target size={20} /> Category Scores
+                                        </h3>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {Object.values(result.categories).map((cat, idx) => (
+                                                <div key={idx} className="bg-gray-50 p-3 rounded border border-gray-300">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="text-xs font-bold text-gray-600">{cat.title}</span>
+                                                        <span className={`text-lg font-black ${getScoreColor(cat.score)}`}>{cat.score}</span>
+                                                    </div>
+                                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                                        <div
+                                                            className={`h-2 rounded-full transition-all ${cat.score >= 85 ? 'bg-green-500' : cat.score >= 70 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                                            style={{ width: `${cat.score}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Statistics */}
+                                {result.details && (
+                                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
+                                        <h3 className="font-bold mb-2 flex items-center gap-2">
+                                            <TrendingUp size={18} /> Quick Stats
+                                        </h3>
+                                        <div className="grid grid-cols-3 gap-2 text-xs">
+                                            <div><span className="font-bold">{result.details.totalWords}</span> words</div>
+                                            <div><span className="font-bold">{result.details.actionVerbs}</span> action verbs</div>
+                                            <div><span className="font-bold">{result.details.quantifiableResults}</span> metrics</div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Strengths */}
+                                {result.strengths && result.strengths.length > 0 && (
+                                    <div className="mb-4">
+                                        <p className="flex items-center gap-2 font-bold text-green-700 mb-2">
+                                            <CheckCircle size={18} /> Strengths
+                                        </p>
+                                        <ul className="list-none pl-0 text-gray-700 text-sm space-y-1">
+                                            {result.strengths.map((s, i) => <li key={i} className="pl-0">{s}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {/* Warnings */}
+                                {result.warnings && result.warnings.length > 0 && (
+                                    <div className="mb-4">
+                                        <p className="flex items-center gap-2 font-bold text-orange-600 mb-2">
+                                            <AlertTriangle size={18} /> Warnings
+                                        </p>
+                                        <ul className="list-none pl-0 text-gray-700 text-sm space-y-1">
+                                            {result.warnings.map((w, i) => <li key={i} className="pl-0">{w}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {/* Improvements */}
+                                {result.feedback && result.feedback.length > 0 && (
+                                    <div>
+                                        <p className="flex items-center gap-2 font-bold text-red-700 mb-2">
+                                            <AlertTriangle size={18} /> Improvements Needed
+                                        </p>
+                                        <ul className="list-none pl-0 text-gray-700 text-sm space-y-1">
+                                            {result.feedback.map((f, i) => <li key={i} className="pl-0">{f}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
+                            </motion.div>
+                        </>
                     ) : (
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -189,7 +249,7 @@ export default function Analyser() {
                             <div>
                                 <h3 className="text-xl font-bold font-sketch text-yellow-400 mb-1">Want a Human Review?</h3>
                                 <p className="text-gray-300 text-sm mb-3">
-                                    software can only do so much. Get your resume reviewed by a professional top-tier recruiter.
+                                    Software can only do so much. Get your resume reviewed by a professional recruiter.
                                 </p>
                                 <button className="text-black bg-white px-4 py-2 font-bold font-sketch text-sm rounded shadow hover:bg-gray-200 transition-colors uppercase">
                                     Hire a Pro ($)

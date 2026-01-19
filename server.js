@@ -28,89 +28,236 @@ const ACTION_VERBS = [
     'managed', 'led', 'developed', 'created', 'implemented', 'optimized', 'engineered',
     'designed', 'launched', 'improved', 'increased', 'reduced', 'saved', 'structured',
     'mentored', 'coordinated', 'achieved', 'driven', 'spearheaded', 'built', 'analyzed',
-    'collaborated', 'initiated', 'executed', 'formulated', 'integrated', 'maximized'
+    'collaborated', 'initiated', 'executed', 'formulated', 'integrated', 'maximized',
+    'established', 'delivered', 'enhanced', 'streamlined', 'resolved', 'pioneered'
 ];
+
+const BUZZWORDS = ['synergy', 'leverage', 'utilize', 'paradigm', 'circle back', 'touch base'];
+const ATS_KEYWORDS = ['teamwork', 'communication', 'leadership', 'project management', 'problem solving',
+    'analytical', 'strategic', 'time management', 'adaptability', 'detail-oriented'];
 
 function analyzeResume(data) {
     const { personal, experience, projects, education, skills } = data;
-    let score = 100;
+
+    // Category scores
+    let contentScore = 100;
+    let formatScore = 100;
+    let keywordScore = 100;
+    let impactScore = 100;
+
     const feedback = [];
     const strengths = [];
+    const warnings = [];
+    const categories = {};
 
-    // 1. Completeness Check
-    if (!personal.name) { score -= 15; feedback.push("Critical: Missing Name."); }
-    if (!personal.email) { score -= 15; feedback.push("Critical: Missing Email."); }
-    if (!personal.phone) { score -= 5; feedback.push("Missing Phone Number."); }
-    if (experience.length === 0) { score -= 20; feedback.push("Critical: No experience listed. Add internships or jobs."); }
-    if (education.length === 0) { score -= 10; feedback.push("Critical: No education listed."); }
-    if (!skills || skills.length < 5) { score -= 10; feedback.push("Skills section is empty or too sparse."); }
+    // === 1. COMPLETENESS & FORMAT ANALYSIS ===
+    let missingFields = 0;
 
-    // 2. Content Depth & Keywords
+    if (!personal.name) { formatScore -= 20; feedback.push("❌ Critical: Name is missing."); missingFields++; }
+    if (!personal.email) { formatScore -= 15; feedback.push("❌ Critical: Email is missing."); missingFields++; }
+    else if (!personal.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+        formatScore -= 5; feedback.push("⚠️ Email format looks invalid.");
+    }
+
+    if (!personal.phone) { formatScore -= 10; feedback.push("⚠️ Phone number is missing."); }
+    else if (!personal.phone.match(/\d{3}.*\d{3}.*\d{4}/)) {
+        formatScore -= 3; feedback.push("⚠️ Phone number format looks unusual.");
+    }
+
+    if (!personal.location) { formatScore -= 5; feedback.push("💡 Consider adding your location."); }
+    if (personal.linkedin && !personal.linkedin.includes('linkedin.com')) {
+        formatScore -= 3; feedback.push("⚠️ LinkedIn URL appears incomplete.");
+    }
+
+    categories.format = {
+        score: Math.max(0, formatScore),
+        missing: missingFields,
+        title: 'Format & Contact'
+    };
+
+    // === 2. CONTENT DEPTH ANALYSIS ===
+    const totalWords = JSON.stringify(data).split(/\s+/).length;
     let totalBullets = 0;
-    let totalQuantifiable = 0; // Numbers, %, $
+    let totalQuantifiable = 0;
+    let shortDescriptions = 0;
 
-    // Helper to check for numbers
-    const hasNumbers = (str) => /\d+%|\$\d+|\d+/.test(str);
+    const hasNumbers = (str) => /\d+%|\$\d+|[\d,]+\s*(?:users|customers|people|hours|days|months)|increase.*\d+|reduce.*\d+|improve.*\d+/.test(str);
 
-    experience.forEach(exp => {
-        if (exp.details) {
-            const bullets = exp.details.split('\n').filter(line => line.trim().length > 10);
-            totalBullets += bullets.length;
+    if (experience.length === 0) {
+        contentScore -= 30;
+        feedback.push("❌ Critical: No work experience listed.");
+    } else {
+        experience.forEach(exp => {
+            if (!exp.details || exp.details.trim().length === 0) {
+                contentScore -= 8;
+                feedback.push(`❌ Role at ${exp.company || 'Unknown'} has no description.`);
+                shortDescriptions++;
+            } else {
+                const bullets = exp.details.split('\n').filter(line => line.trim().length > 10);
+                totalBullets += bullets.length;
 
-            bullets.forEach(b => {
-                if (hasNumbers(b)) totalQuantifiable++;
-            });
+                bullets.forEach(b => {
+                    if (hasNumbers(b)) totalQuantifiable++;
+                });
 
-            if (bullets.length < 3) {
-                score -= 3;
-                feedback.push(`Role at ${exp.company || 'Unknown'} could use more detail (aim for 3+ bullets).`);
+                if (bullets.length < 2) {
+                    contentScore -= 5;
+                    feedback.push(`💡 Add more detail to ${exp.company || 'role'} (aim for 3-5 bullets).`);
+                    shortDescriptions++;
+                }
+
+                if (bullets.length > 7) {
+                    contentScore -= 2;
+                    warnings.push(`⚠️ Role at ${exp.company} has too many bullets (${bullets.length}). Consider condensing.`);
+                }
             }
-        } else {
-            score -= 5;
-            feedback.push(`Role at ${exp.company || 'Unknown'} has no details.`);
+        });
+
+        if (totalBullets >= 10) strengths.push("✅ Excellent experience depth.");
+        else if (totalBullets >= 5) strengths.push("✅ Good amount of experience detail.");
+    }
+
+    if (totalQuantifiable >= 5) {
+        impactScore += 0; // Perfect
+        strengths.push("✅ Excellent use of quantifiable achievements!");
+    } else if (totalQuantifiable >= 2) {
+        strengths.push("✅ Good use of metrics in descriptions.");
+    } else {
+        impactScore -= 15;
+        feedback.push("💡 Add specific numbers/metrics (e.g., 'Increased efficiency by 40%').");
+    }
+
+    // Word count analysis
+    if (totalWords < 200) {
+        contentScore -= 15;
+        feedback.push(`⚠️ Resume is too short (${totalWords} words). Aim for 400-600 words.`);
+    } else if (totalWords > 800) {
+        contentScore -= 5;
+        warnings.push(`⚠️ Resume is quite long (${totalWords} words). Consider being more concise.`);
+    } else {
+        strengths.push(`✅ Good length (${totalWords} words).`);
+    }
+
+    categories.content = {
+        score: Math.max(0, contentScore),
+        bullets: totalBullets,
+        metrics: totalQuantifiable,
+        words: totalWords,
+        title: 'Content Quality'
+    };
+
+    // === 3. KEYWORD & ATS ANALYSIS ===
+    const allText = JSON.stringify(data).toLowerCase();
+    let actionVerbCount = 0;
+    const foundVerbs = [];
+
+    ACTION_VERBS.forEach(verb => {
+        if (allText.includes(verb)) {
+            actionVerbCount++;
+            if (foundVerbs.length < 5) foundVerbs.push(verb);
         }
     });
 
-    if (totalBullets >= 5) strengths.push("Good depth of experience.");
-    if (totalQuantifiable >= 2) {
-        strengths.push("Great use of quantifiable results (numbers/metrics).");
-    } else if (experience.length > 0) {
-        score -= 5;
-        feedback.push("Add more numbers/metrics to your bullet points (e.g., 'Increased sales by 20%').");
+    if (actionVerbCount < 5 && experience.length > 0) {
+        keywordScore -= 15;
+        feedback.push("💡 Use more strong action verbs (Led, Developed, Managed, etc.).");
+    } else if (actionVerbCount >= 8) {
+        strengths.push(`✅ Strong use of action verbs (${actionVerbCount} found).`);
     }
 
-    // 3. Action Verbs Check
-    let actionVerbCount = 0;
-    const allText = JSON.stringify(data).toLowerCase();
-    ACTION_VERBS.forEach(verb => {
-        if (allText.includes(verb)) actionVerbCount++;
-    });
-
-    if (actionVerbCount < 3 && experience.length > 0) {
-        score -= 10;
-        feedback.push("Use more strong action verbs (e.g., 'Managed', 'Developed').");
-    } else if (actionVerbCount >= 5) {
-        strengths.push("Strong vocabulary and action verbs.");
+    // ATS Keyword check
+    const foundATSKeywords = ATS_KEYWORDS.filter(k => allText.includes(k.toLowerCase()));
+    if (foundATSKeywords.length >= 5) {
+        strengths.push("✅ Good coverage of ATS-friendly keywords.");
+    } else if (foundATSKeywords.length < 3) {
+        keywordScore -= 10;
+        feedback.push("💡 Add more industry-standard keywords (leadership, communication, etc.).");
     }
 
-    // 4. Summary Check
-    if (!personal.summary || personal.summary.length < 30) {
-        score -= 5;
-        feedback.push("Profile summary is missing or too short. Add a professional summary.");
+    // Buzzword detection
+    const foundBuzzwords = BUZZWORDS.filter(b => allText.includes(b.toLowerCase()));
+    if (foundBuzzwords.length > 0) {
+        keywordScore -= 5;
+        warnings.push(`⚠️ Avoid buzzwords: ${foundBuzzwords.join(', ')}.`);
     }
 
-    // 5. Formatting/ATS (Simulated checks)
-    // We assume the generator handles fonts/margins, but warn user about content
-    if (personal.linkedin && !personal.linkedin.includes('linkedin.com')) {
-        score -= 2;
-        feedback.push("LinkedIn URL looks incomplete.");
+    categories.keywords = {
+        score: Math.max(0, keywordScore),
+        actionVerbs: actionVerbCount,
+        atsKeywords: foundATSKeywords.length,
+        title: 'Keywords & ATS'
+    };
+
+    // === 4. IMPACT & PROFESSIONALISM ===
+    if (!personal.summary || personal.summary.length < 50) {
+        impactScore -= 10;
+        feedback.push("💡 Add a professional summary (2-3 sentences about your background).");
+    } else if (personal.summary.length > 300) {
+        impactScore -= 5;
+        warnings.push("⚠️ Summary is quite long. Aim for 100-200 words.");
+    } else {
+        strengths.push("✅ Good professional summary.");
     }
+
+    if (education.length === 0) {
+        impactScore -= 15;
+        feedback.push("❌ No education listed.");
+    } else {
+        strengths.push("✅ Education included.");
+    }
+
+    if (!skills || skills.trim().length < 20) {
+        impactScore -= 10;
+        feedback.push("💡 Expand your skills section (list 8-12 relevant skills).");
+    } else if (skills.split(',').length < 5) {
+        impactScore -= 5;
+        feedback.push("💡 Add more skills (aim for at least 8).");
+    } else {
+        strengths.push(`✅ Good skills coverage (${skills.split(',').length} skills).`);
+    }
+
+    if (projects && projects.length > 0) {
+        strengths.push("✅ Projects section adds value.");
+    }
+
+    categories.impact = {
+        score: Math.max(0, impactScore),
+        hasSummary: personal.summary && personal.summary.length >= 50,
+        hasEducation: education.length > 0,
+        hasProjects: projects && projects.length > 0,
+        title: 'Impact & Polish'
+    };
+
+    // === 5. OVERALL CALCULATION ===
+    const overallScore = Math.round((contentScore + formatScore + keywordScore + impactScore) / 4);
+    const atsScore = Math.round(overallScore * 0.95); // Slightly stricter for ATS
+
+    let grade;
+    if (overallScore >= 90) grade = 'A+';
+    else if (overallScore >= 85) grade = 'A';
+    else if (overallScore >= 80) grade = 'A-';
+    else if (overallScore >= 75) grade = 'B+';
+    else if (overallScore >= 70) grade = 'B';
+    else if (overallScore >= 65) grade = 'B-';
+    else if (overallScore >= 60) grade = 'C+';
+    else if (overallScore >= 55) grade = 'C';
+    else grade = 'D';
 
     return {
-        score: Math.max(0, score),
-        grade: score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B' : score >= 50 ? 'C' : 'F',
+        score: Math.max(0, Math.min(100, overallScore)),
+        atsScore: Math.max(0, Math.min(100, atsScore)),
+        grade,
         feedback,
-        strengths
+        strengths,
+        warnings,
+        categories,
+        details: {
+            totalWords,
+            actionVerbs: actionVerbCount,
+            quantifiableResults: totalQuantifiable,
+            experienceEntries: experience.length,
+            educationEntries: education.length
+        }
     };
 }
 
