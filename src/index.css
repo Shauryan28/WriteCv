@@ -32,6 +32,15 @@ body {
   transform: rotate(-1deg) scale(1.01);
 }
 
+.doodle-card {
+  background: white;
+  border: 2px solid var(--color-ink);
+  border-radius: 1rem;
+  box-shadow: 4px 4px 0px 0px rgba(17, 17, 17, 1);
+  transition: all 0.3s ease-out;
+}
+
+
 .stamp-btn {
   background-color: var(--color-ink);
   color: white;
